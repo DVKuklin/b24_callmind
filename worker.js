@@ -403,7 +403,7 @@ async function runDeepSeek(transcript, model, manager, contact, deepseekKey) {
     '{"sentiment":"positive"|"neutral"|"negative","pos":0-100,"neu":0-100,"neg":0-100,' +
     '"topics":["тема"],"keyPoints":[{"icon":"emoji","label":"...","text":"..."}],' +
     '"transcript":[{"role":"agent"|"client","name":"...","time":"0:00","text":"..."}]}\n\n' +
-    'ВАЖНО: Весь JSON ответ не должен превышать 1800 символов.\n' +
+    'ВАЖНО: Весь JSON ответ не должен превышать 7900 символов.\n' +
     'Если не помещается — обрезай текст в полях "text" у keyPoints и transcript, добавляя "..." в конце.\n' +
     'Сначала сокращай transcript, потом keyPoints.\n\n' +
     (manager ? 'Менеджер: ' + manager + '\n' : '') +
@@ -414,7 +414,7 @@ async function runDeepSeek(transcript, model, manager, contact, deepseekKey) {
     const dr = await fetch('https://api.deepseek.com/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + deepseekKey },
-      body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 2000 }),
+      body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192 }),
     });
 
     const dj = await dr.json();
