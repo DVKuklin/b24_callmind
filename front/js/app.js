@@ -2494,7 +2494,7 @@ var App = (function () {
     console.log(options);
     try{
       BX24.callMethod('user.option.set', {
-        options: options
+        "options": options
       },function(res){
         console.log(res);
       });
