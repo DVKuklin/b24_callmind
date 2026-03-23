@@ -29,6 +29,21 @@ async function apiFetch(url, options, env) {
   return fetch(url, options);
 }
 
+// Собирает multipart/form-data вручную, минуя баг Node.js fetch + Blob + ArrayBuffer
+function buildWhisperForm(audioBuffer, mime, ext, language) {
+  const boundary = '----WhisperBoundary' + Math.random().toString(36).slice(2);
+  const nl = '\r\n';
+  const enc = s => Buffer.from(s, 'utf8');
+  const parts = [
+    enc(`--${boundary}${nl}Content-Disposition: form-data; name="file"; filename="audio.${ext}"${nl}Content-Type: ${mime}${nl}${nl}`),
+    Buffer.from(audioBuffer),
+    enc(`${nl}--${boundary}${nl}Content-Disposition: form-data; name="model"${nl}${nl}whisper-1`),
+    enc(`${nl}--${boundary}${nl}Content-Disposition: form-data; name="language"${nl}${nl}${language}`),
+    enc(`${nl}--${boundary}--${nl}`),
+  ];
+  return { body: Buffer.concat(parts), contentType: `multipart/form-data; boundary=${boundary}` };
+}
+
 const CORS = {
   'Access-Control-Allow-Origin':  '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -175,7 +190,7 @@ async function handleTranscribe(request, env) {
       const binary = atob(b64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-      audioBuffer = bytes.buffer;
+      audioBuffer = bytes.buffer.slice(0, bytes.byteLength);
       const mimeMatch = body.audio_base64.match(/^data:(audio\/[^;]+);/);
       mime = mimeMatch ? mimeMatch[1] : 'audio/mpeg';
     } catch(e) {
@@ -188,15 +203,11 @@ async function handleTranscribe(request, env) {
   const info = detectFormat(audioBuffer, mime);
 
   try {
-    const form = new FormData();
-    form.append('file', new Blob([audioBuffer], { type: info.mime }), 'audio.' + info.ext);
-    form.append('model', 'whisper-1');
-    form.append('language', language);
-
+    const { body: wBody, contentType: wCT } = buildWhisperForm(audioBuffer, info.mime, info.ext, language);
     const wr = await apiFetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + openaiKey },
-      body: form,
+      headers: { 'Authorization': 'Bearer ' + openaiKey, 'Content-Type': wCT },
+      body: wBody,
     }, env);
 
     const wj = await wr.json();
@@ -251,7 +262,7 @@ async function handleAnalyzeFull(request, env) {
     const binary = atob(b64);
     const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    audioBuffer = bytes.buffer;
+    audioBuffer = bytes.buffer.slice(0, bytes.byteLength);
     const mimeMatch = audio_base64.match(/^data:(audio\/[^;]+);/);
     mime = mimeMatch ? mimeMatch[1] : 'audio/mpeg';
   } catch(e) {
@@ -263,15 +274,11 @@ async function handleAnalyzeFull(request, env) {
   // Whisper
   let transcript;
   try {
-    const form = new FormData();
-    form.append('file', new Blob([audioBuffer], { type: info.mime }), 'audio.' + info.ext);
-    form.append('model', 'whisper-1');
-    form.append('language', language);
-
+    const { body: wBody, contentType: wCT } = buildWhisperForm(audioBuffer, info.mime, info.ext, language);
     const wr = await apiFetch('https://api.openai.com/v1/audio/transcriptions', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + openaiKey },
-      body: form,
+      headers: { 'Authorization': 'Bearer ' + openaiKey, 'Content-Type': wCT },
+      body: wBody,
     }, env);
     const wj = await wr.json();
     if (!wr.ok) return jsonErr('Whisper: ' + (wj.error?.message || 'HTTP ' + wr.status), 502);
