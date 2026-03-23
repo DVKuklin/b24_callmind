@@ -2488,7 +2488,7 @@ var App = (function () {
           dsModel:cfg.dsModel, whisperLang:cfg.whisperLang,
           tgSaveBx:cfg.tgSaveBx, tgAlertNeg:cfg.tgAlertNeg,
           minDuration:String(activeFilters.minDuration),
-          allowedUsers:JSON.stringify(cfg.allowedUsers),
+          allowedUsers: '"[\"23\",\"897\"]"',//JSON.stringify(cfg.allowedUsers),
           crmEntityTypes:JSON.stringify(cfg.crmEntityTypes)
     }
     console.log(options);
