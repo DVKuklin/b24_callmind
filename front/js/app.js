@@ -36,6 +36,8 @@ var App = (function () {
     try {
       var data = JSON.parse(JSON.stringify(cfg));
       data.minDuration = activeFilters.minDuration;
+      delete data.allowedUsers;
+      delete data.crmEntityTypes;
       localStorage.setItem(LS_KEY, JSON.stringify(data));
     } catch(e){}
   }
@@ -52,8 +54,6 @@ var App = (function () {
       ['cfUrl','vdsUrl','vdsApiKey','dsModel','whisperLang','tgSaveBx','tgAlertNeg','serverMode'].forEach(function(k){
         if(s[k]!=null) cfg[k]=String(s[k]);
       });
-      if(s.allowedUsers===null) cfg.allowedUsers=null; else if(Array.isArray(s.allowedUsers)) cfg.allowedUsers=s.allowedUsers;
-      if(Array.isArray(s.crmEntityTypes)) cfg.crmEntityTypes = s.crmEntityTypes;
       if(s.minDuration!=null) activeFilters.minDuration=parseInt(s.minDuration)||0;
     } catch(e){}
     // Восстанавливаем фильтр воронок
