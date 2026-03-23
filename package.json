@@ -1,0 +1,13 @@
+{
+  "name": "callmind-worker",
+  "version": "9.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env server.js"
+  },
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "https-proxy-agent": "^7.0.6",
+    "node-fetch": "^3.3.2"
+  }
+}

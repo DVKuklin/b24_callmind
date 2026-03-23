@@ -1,0 +1,22 @@
+{
+  "name": "CallMind",
+  "description": "AI-аналитика звонков: расшифровка Whisper, анализ тональности DeepSeek, итоги в CRM",
+  "version": "2.0",
+  "vendor": "CallMind",
+
+  "categories": ["CALL"],
+
+  "slug": "callmind",
+
+  "app": {
+    "url": "index.html",
+    "install_url": "install.html"
+  },
+
+  "permissions": [
+    "telephony",
+    "crm",
+    "user",
+    "app"
+  ]
+}

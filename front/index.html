@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Анализ Звонков — DailyGrow</title>
+<script src="https://api.bitrix24.com/api/v1/"></script>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+
+<!-- ══ TOP NAVBAR ══ -->
+<header class="topnav">
+  <div class="topnav-brand">
+    <div class="logo-icon">🎙️</div>
+    <div>
+      <div class="logo-text">AI Анализ Звонков</div>
+      <div class="logo-sub">DailyGrow</div>
+    </div>
+  </div>
+  <nav class="topnav-menu">
+    <div class="tnav-item active" data-page="calls">
+      <span class="tnav-icon">📞</span> Звонки
+      <span class="tnav-badge" id="callsBadge"></span>
+    </div>
+    <div class="tnav-item" data-page="analytics">
+      <span class="tnav-icon">📈</span> Аналитика
+    </div>
+    <div class="tnav-item" data-page="scripts">
+      <span class="tnav-icon">📋</span> Скрипты
+      <span class="tnav-badge" id="scriptsBadge" style="background:var(--purple)"></span>
+    </div>
+    <div class="tnav-item" data-page="settings">
+      <span class="tnav-icon">⚙️</span> Настройки
+    </div>
+  </nav>
+  <div class="topnav-right">
+    <div class="topnav-status" id="cfStatus">
+      <div class="status-dot yellow"></div>
+      <span id="cfStatusText">Проверка...</span>
+    </div>
+    <div class="topnav-user" id="topbarUser"></div>
+    <div class="topnav-portal" id="portalInfo"></div>
+  </div>
+</header>
+
+<!-- ══ MAIN ══ -->
+<main class="main">
+
+  <!-- ══════════ CALLS ══════════ -->
+  <div class="page active" id="page-calls">
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Звонков</div>
+        <div class="stat-value accent" id="statTotal">—</div>
+        <div class="stat-sub" id="statPeriodLabel"></div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">С записью</div>
+        <div class="stat-value blue" id="statRecord">—</div>
+        <div class="stat-sub">Доступны для анализа</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Проанализировано</div>
+        <div class="stat-value green" id="statDone">—</div>
+        <div class="stat-sub">Whisper + DeepSeek</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Требуют внимания</div>
+        <div class="stat-value red" id="statNeg">—</div>
+        <div class="stat-sub">Негативный тон</div>
+      </div>
+    </div>
+
+    <div class="bulk-bar" id="bulkBar">
+      <div class="bulk-info"><span id="bulkCount">0</span> звонков выбрано</div>
+      <button class="btn btn-check-script sm" id="bulkScriptBtn">📋 Проверить по скрипту</button>
+      <button class="btn btn-ghost sm" id="bulkClearBtn">✕ Отменить выбор</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn" id="staffFilterBtn">
+        <span>👤</span>
+        <span id="staffFilterLabel">Все сотрудники</span>
+        <span class="filter-btn-arrow">▾</span>
+      </button>
+      <div class="filter-bar-div"></div>
+      <button class="filter-btn" id="dateFilterBtn">
+        <span>📅</span>
+        <span id="dateFilterLabel">Последние 7 дней</span>
+        <span class="filter-btn-arrow">▾</span>
+      </button>
+      <div class="filter-bar-div"></div>
+      <label class="filter-check">
+        <input type="checkbox" id="filterHasRecord" checked>
+        <span>🎙️ Только с записью</span>
+      </label>
+      <div class="filter-bar-div"></div>
+      <select class="filter-select" id="filterSentiment">
+        <option value="">Любая тональность</option>
+        <option value="positive">😊 Позитивные</option>
+        <option value="neutral">😐 Нейтральные</option>
+        <option value="negative">😡 Негативные</option>
+        <option value="none">— Без анализа</option>
+      </select>
+      <div class="filter-bar-div"></div>
+      <button class="btn btn-primary sm" id="applyFiltersBtn">✓ Применить</button>
+      <button class="btn btn-ghost sm" id="resetFiltersBtn">Сбросить</button>
+      <div class="filter-count" id="filtersCount"></div>
+    </div>
+
+    <div class="card" style="margin-top:0">
+      <div class="card-body pt0">
+        <div id="callsLoading" class="loading-row">
+          <span class="spinner"></span>&nbsp; Загрузка звонков из Bitrix24...
+        </div>
+        <div id="callsEmpty" class="empty-state" style="display:none">
+          <div class="empty-icon">🔍</div>
+          <div>Нет звонков по выбранным фильтрам</div>
+        </div>
+        <table class="calls-table" id="callsTable" style="display:none">
+          <thead>
+            <tr>
+              <th style="width:32px;padding-left:10px"><input type="checkbox" id="selectAllCalls" title="Выбрать все" style="width:14px;height:14px;accent-color:var(--accent);cursor:pointer"></th>
+              <th>Дата / Время</th>
+              <th>Контакт</th>
+              <th>Воронка / Этап</th>
+              <th>Сотрудник</th>
+              <th>Тип</th>
+              <th>Длит.</th>
+              <th style="text-align:center">Запись</th>
+              <th style="text-align:center">Оценка</th>
+              <th style="text-align:right">Действия</th>
+            </tr>
+          </thead>
+          <tbody id="callsBody"></tbody>
+        </table>
+        <div id="paginationWrap" style="display:none"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ ANALYTICS ══════════ -->
+  <div class="page" id="page-analytics">
+
+    <!-- ── Фильтры ── -->
+    <div class="an-filter-bar">
+      <div class="an-filter-group">
+        <div class="an-filter-label">СОТРУДНИКИ</div>
+        <button class="an-filter-btn" id="anStaffBtn">Все сотрудники</button>
+      </div>
+      <div class="an-filter-group">
+        <div class="an-filter-label">ПЕРИОД</div>
+        <button class="an-filter-btn" id="anDateBtn">📅 <span id="anDateLabel">5 мар. — 12 мар.</span> ▾</button>
+      </div>
+    </div>
+
+    <!-- ── Секция 1: KPI виджеты ── -->
+    <div class="an-kpi-row" id="anKpiRow">
+      <div class="an-kpi-card">
+        <div class="an-kpi-icon" style="background:#eef2ff"><span style="color:#6366f1">📞</span></div>
+        <div class="an-kpi-body"><div class="an-kpi-val" id="anTotal">—</div><div class="an-kpi-lbl">ВСЕГО ЗВОНКОВ</div></div>
+      </div>
+      <div class="an-kpi-card">
+        <div class="an-kpi-icon" style="background:#f3e8ff"><span style="color:#9333ea">🎯</span></div>
+        <div class="an-kpi-body">
+          <div class="an-kpi-val" id="anAvgScore">—</div>
+          <div class="an-kpi-lbl">СРЕДНЕЕ КАЧЕСТВО</div>
+          <div class="an-kpi-sub" id="anAnalyzedCount"></div>
+        </div>
+      </div>
+      <div class="an-kpi-card">
+        <div class="an-kpi-icon" style="background:#fff1f2"><span style="color:#e11d48">📵</span></div>
+        <div class="an-kpi-body">
+          <div class="an-kpi-val" id="anMissed">—</div>
+          <div class="an-kpi-lbl">ПРОПУЩЕННЫХ</div>
+          <div class="an-kpi-sub" id="anMissedPct"></div>
+        </div>
+      </div>
+      <div class="an-kpi-card">
+        <div class="an-kpi-icon" style="background:#ecfdf5"><span style="color:#059669">🔗</span></div>
+        <div class="an-kpi-body"><div class="an-kpi-val" id="anCrmPct">—</div><div class="an-kpi-lbl">ПРИВЯЗКА К CRM</div></div>
+      </div>
+      <div class="an-kpi-card">
+        <div class="an-kpi-icon" style="background:#fffbeb"><span style="color:#d97706">⏱</span></div>
+        <div class="an-kpi-body"><div class="an-kpi-val" id="anAvgDur">—</div><div class="an-kpi-lbl">СР. ДЛИТЕЛЬНОСТЬ</div></div>
+      </div>
+    </div>
+
+    <!-- ── Секция 2: Динамика + Активность по часам ── -->
+    <div class="an-two-col" style="margin-bottom:20px">
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">📈</span><span class="an-card-title">ДИНАМИКА ЗВОНКОВ</span></div>
+        <div class="an-chart-wrap"><canvas id="anDynamicsChart"></canvas></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">⏰</span><span class="an-card-title">АКТИВНОСТЬ ПО ЧАСАМ</span></div>
+        <div class="an-chart-wrap"><canvas id="anHoursChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- ── Секция 3: Матрица + Тональность + Топ тематик ── -->
+    <div class="an-three-col" style="margin-bottom:20px">
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">🎯</span><span class="an-card-title">МАТРИЦА НАВЫКОВ</span></div>
+        <div style="position:relative;display:flex;justify-content:center;align-items:center;padding:10px 0">
+          <canvas id="anSkillsChart" width="220" height="220"></canvas>
+        </div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">📊</span><span class="an-card-title">ТОНАЛЬНОСТЬ ДИАЛОГОВ</span></div>
+        <div style="display:flex;justify-content:center;padding:10px 0">
+          <canvas id="anToneChart" width="200" height="200"></canvas>
+        </div>
+        <div id="anToneLegend" class="an-chart-legend"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">#</span><span class="an-card-title">ТОП ТЕМАТИК</span></div>
+        <div id="anTopics" class="an-topics-list"></div>
+      </div>
+    </div>
+
+    <!-- ── Секция 4: Рейтинг + Соответствие + Теги ── -->
+    <div class="an-three-col" style="margin-bottom:20px">
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">👥</span><span class="an-card-title">РЕЙТИНГ СОТРУДНИКОВ</span></div>
+        <div id="anStaffRating" class="an-staff-list"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">🛡</span><span class="an-card-title">СООТВЕТСТВИЕ СТАНДАРТАМ</span></div>
+        <div id="anCompliance" class="an-compliance-list"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">🏷</span><span class="an-card-title">SMART-ТЕГИ</span></div>
+        <div id="anSmartTags" class="an-tags-cloud"></div>
+      </div>
+    </div>
+
+    <!-- ── Секция 5: CRM + Направление + Длительность + Тепловая карта ── -->
+    <div class="an-four-col" style="margin-bottom:20px">
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">🔗</span><span class="an-card-title">ПРИВЯЗКА К CRM</span></div>
+        <div style="display:flex;justify-content:center;padding:8px 0">
+          <canvas id="anCrmChart" width="160" height="160"></canvas>
+        </div>
+        <div id="anCrmLegend" class="an-chart-legend"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">📞</span><span class="an-card-title">НАПРАВЛЕНИЕ</span></div>
+        <div style="display:flex;justify-content:center;padding:8px 0">
+          <canvas id="anDirChart" width="160" height="160"></canvas>
+        </div>
+        <div id="anDirLegend" class="an-chart-legend"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">⏱</span><span class="an-card-title">ДЛИТЕЛЬНОСТЬ ЗВОНКОВ</span></div>
+        <div class="an-chart-wrap"><canvas id="anDurChart"></canvas></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">🌡</span><span class="an-card-title">ТЕПЛОВАЯ КАРТА</span></div>
+        <div id="anHeatmap" class="an-heatmap"></div>
+      </div>
+    </div>
+
+    <!-- ── Секция 6: Последние анализы + Требуют внимания + Последние звонки ── -->
+    <div class="an-three-col">
+      <div class="an-card">
+        <div class="an-card-header">
+          <span class="an-card-icon">📋</span><span class="an-card-title">ПОСЛЕДНИЕ АНАЛИЗЫ</span>
+          <a class="an-card-link" onclick="App.showPage('calls')">ВСЕ ›</a>
+        </div>
+        <div id="anRecentAnalyses" class="an-feed"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header"><span class="an-card-icon">⚠️</span><span class="an-card-title">ТРЕБУЮТ ВНИМАНИЯ</span></div>
+        <div id="anNeedAttention" class="an-feed"></div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-header">
+          <span class="an-card-icon">📞</span><span class="an-card-title">ПОСЛЕДНИЕ ЗВОНКИ</span>
+          <a class="an-card-link" onclick="App.showPage('calls')">ВСЕ ЗВОНКИ ›</a>
+        </div>
+        <div id="anRecentCalls" class="an-recent-calls"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ══════════ SCRIPTS ══════════ -->
+  <div class="page" id="page-scripts">
+    <div class="scripts-grid">
+      <div class="scripts-list-panel">
+        <div class="scripts-list-header">
+          <div class="scripts-list-title">📋 Скрипты</div>
+          <button class="btn btn-primary sm" id="addScriptBtn">+ Добавить</button>
+        </div>
+        <div class="scripts-list-scroll" id="scriptsList"></div>
+      </div>
+      <div class="scripts-detail-panel" id="scriptsDetailPanel">
+        <div class="scripts-empty">
+          <div class="scripts-empty-icon">📋</div>
+          <div class="scripts-empty-title">Выберите или загрузите скрипт</div>
+          <div class="scripts-empty-sub">Добавьте скрипт разговора и используйте его для проверки расшифровок звонков</div>
+          <button class="btn btn-primary" style="margin-top:16px" id="addScriptBtn2">+ Добавить скрипт</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ SETTINGS ══════════ -->
+  <div class="page" id="page-settings">
+    <div class="settings-grid">
+      <div>
+
+        <!-- Режим обработки -->
+        <div class="card mb20">
+          <div class="card-header">
+            <div class="card-title">⚙️ Режим обработки звонков</div>
+            <div class="card-sub">Выберите способ транскрибации и анализа</div>
+          </div>
+          <div class="card-body">
+            <div class="mode-switcher" id="modeSwitcher">
+              <button class="mode-btn active" data-mode="worker" id="modeWorkerBtn">
+                <span class="mode-icon">☁️</span>
+                <div>
+                  <div class="mode-name">Cloudflare Worker</div>
+                  <div class="mode-desc">Whisper + DeepSeek через Worker</div>
+                </div>
+              </button>
+              <button class="mode-btn" data-mode="vds" id="modeVdsBtn">
+                <span class="mode-icon">🖥️</span>
+                <div>
+                  <div class="mode-name">VDS сервер</div>
+                  <div class="mode-desc">Собственный сервер обработки</div>
+                </div>
+              </button>
+            </div>
+
+            <!-- Блок Worker -->
+            <div id="workerBlock" class="server-block">
+              <div class="form-group">
+                <label class="form-label">URL Cloudflare Worker</label>
+                <input class="form-input mono" id="cfWorkerUrl" type="text" placeholder="https://callmind.your-name.workers.dev">
+                <div class="form-hint">Деплой: <code>wrangler deploy</code> · Ключи: <code>OPENAI_KEY</code> и <code>DEEPSEEK_KEY</code></div>
+              </div>
+              <button class="btn btn-secondary" style="width:100%;margin-top:2px" id="testWorkerBtn" onclick="App.testServer('worker')">🔌 Проверить Worker</button>
+            </div>
+
+            <!-- Блок VDS -->
+            <div id="vdsBlock" class="server-block" style="display:none">
+              <div class="form-group">
+                <label class="form-label">URL VDS сервера</label>
+                <input class="form-input mono" id="vdsUrl" type="text" placeholder="https://your-vds.example.com:3000">
+                <div class="form-hint">Node.js сервер с эндпоинтами <code>/health</code>, <code>/transcribe</code>, <code>/analyze-text</code>, <code>/script-check</code></div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">API-ключ VDS <span style="font-size:10px;color:var(--muted2)">(опционально)</span></label>
+                <input class="form-input mono" id="vdsApiKey" type="password" placeholder="secret-key (если настроен)">
+                <div class="form-hint">Передаётся в заголовке <code>x-api-key</code></div>
+              </div>
+              <button class="btn btn-secondary" style="width:100%;margin-top:2px" id="testVdsBtn" onclick="App.testServer('vds')">🔌 Проверить VDS</button>
+            </div>
+
+            <!-- Статус -->
+            <div class="server-status-row" id="serverStatusRow" style="margin-top:12px">
+              <div class="status-dot yellow" id="serverStatusDot"></div>
+              <span id="serverStatusText" style="font-size:12px;color:var(--muted2)">Не проверено</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card mb20">
+          <div class="card-header"><div class="card-title">🎵 Whisper STT</div></div>
+          <div class="card-body">
+            <div class="form-group">
+              <label class="form-label">Язык записей</label>
+              <select class="form-select" id="whisperLang">
+                <option value="ru">Русский</option>
+                <option value="kk">Казахский</option>
+                <option value="">Авто-определение</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><div class="card-title">⚙️ Поведение</div></div>
+          <div class="card-body">
+            <div class="toggles">
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <div class="toggle-name">Сохранять анализ в Bitrix24</div>
+                  <div class="toggle-desc">Добавлять итог AI как комментарий к звонку</div>
+                </div>
+                <button class="toggle-switch on" id="tgSaveBx"></button>
+              </div>
+              <div class="toggle-row">
+                <div class="toggle-info">
+                  <div class="toggle-name">Оповещение при негативе</div>
+                  <div class="toggle-desc">Уведомить в Bitrix24 при негативном звонке</div>
+                </div>
+                <button class="toggle-switch" id="tgAlertNeg"></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><div class="card-title">🧠 DeepSeek</div></div>
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">Модель</label>
+              <select class="form-select" id="dsModel">
+                <option value="deepseek-chat">deepseek-chat (рекомендуется)</option>
+                <option value="deepseek-reasoner">deepseek-reasoner</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <div>
+
+        <!-- 1. Звонки для анализа -->
+        <div class="card mb20">
+          <div class="card-header">
+            <div class="card-title">📞 Звонки для анализа</div>
+            <div class="card-sub">Фильтр по длительности, применяется при загрузке</div>
+          </div>
+          <div class="card-body">
+            <div class="form-group" style="margin-bottom:0">
+              <label class="form-label">⏱ Минимальная длительность</label>
+              <div style="display:flex;align-items:center;gap:8px">
+                <input type="number" class="form-input" id="settingsMinDuration" value="10" min="0" max="3600" step="5" style="width:90px">
+                <span style="font-size:13px;color:var(--muted2)">секунд</span>
+              </div>
+              <div class="form-hint">Звонки короче этого значения не будут показаны в таблице</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Тип CRM-сущности -->
+        <div class="card mb20">
+          <div class="card-header"><div class="card-title">🏢 Тип CRM-сущности</div></div>
+          <div class="card-body">
+            <div class="form-hint" style="margin-bottom:10px">Фильтр звонков по типу CRM-сущности. Оставьте пустым — все звонки.</div>
+            <div style="display:flex;flex-direction:column;gap:8px">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="crmTypeCompany" value="COMPANY"> <span>Компания</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="crmTypeLead" value="LEAD"> <span>Лид</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="crmTypeContact" value="CONTACT"> <span>Контакт</span>
+              </label>
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
+                <input type="checkbox" id="crmTypeNone" value="null"> <span>Без CRM</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Сотрудники для анализа -->
+        <div class="card mb20">
+          <div class="card-header"><div class="card-title">👥 Сотрудники для анализа</div></div>
+          <div class="card-body">
+            <div class="form-hint" style="margin-bottom:10px">Выберите сотрудников, звонки которых будут отображаться. Оставьте пустым — все сотрудники.</div>
+            <div style="display:flex;gap:6px;margin-bottom:8px">
+              <button class="btn btn-ghost sm" id="settingsSelectAllStaff">Выбрать всех</button>
+              <button class="btn btn-ghost sm" id="settingsClearAllStaff">Очистить</button>
+            </div>
+            <div class="dept-list" id="settingsDeptList">
+              <div class="loading-row" style="padding:16px"><span class="spinner"></span> Загрузка...</div>
+            </div>
+            <div style="margin-top:8px;font-size:11px;color:var(--muted2)" id="settingsStaffCount"></div>
+          </div>
+        </div>
+
+        <!-- 4. Сделки для анализа -->
+        <!-- <div class="card">
+          <div class="card-header">
+            <div class="card-title">🏷️ Сделки для анализа</div>
+            <div class="card-sub">Фильтр по воронкам и этапам CRM. По умолчанию — все звонки</div>
+          </div>
+          <div class="card-body">
+            <div class="form-hint" style="margin-bottom:10px">
+              Если ничего не выбрано — показываются все звонки. Выберите этапы, чтобы ограничить выборку контактами на этих этапах.
+            </div>
+            <div id="settingsFunnelList" class="settings-funnel-container">
+              <div class="loading-row" style="padding:8px"><span class="spinner"></span> Загрузка воронок...</div>
+            </div>
+            <div style="display:flex;gap:6px;margin-top:10px">
+              <button class="btn btn-ghost sm" id="settingsFunnelSelectAll">Выбрать все</button>
+              <button class="btn btn-ghost sm" id="settingsFunnelClear">Сбросить</button>
+            </div>
+          </div>
+        </div> -->
+
+      </div>
+    </div>
+    <div class="settings-actions">
+      <button class="btn btn-primary lg" id="saveSettingsBtn" onclick="App.saveSettings()">💾 Сохранить</button>
+    </div>
+  </div>
+
+</main>
+
+<!-- ══ MODAL: АНАЛИЗ ЗВОНКА ══ -->
+<div class="modal-overlay" id="callModal">
+  <div class="modal modal-wide">
+    <!-- Сквозной блок (всегда виден на всех вкладках) -->
+    <div class="modal-call-header" id="modalCallHeader">
+      <div class="modal-call-info">
+        <div class="modal-call-phone" id="modalPhone">—</div>
+        <div class="modal-call-crm" id="modalCrmLink"></div>
+        <div class="modal-call-meta" id="modalMeta"></div>
+      </div>
+      <div class="modal-call-audio" id="modalAudioWrap" style="display:none">
+        <audio id="modalAudioPlayer" controls></audio>
+      </div>
+      <button class="modal-close" id="modalClose">✕</button>
+    </div>
+    <!-- Вкладки -->
+    <div class="modal-tabs" id="modalTabs" style="display:none">
+      <button class="modal-tab active" data-tab="overview">📊 Обзор</button>
+      <button class="modal-tab" data-tab="transcript">📝 Расшифровка</button>
+      <button class="modal-tab" data-tab="scriptcheck">📋 Мои проверки</button>
+    </div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ПЕРИОД ══ -->
+<div class="modal-overlay" id="dateModal">
+  <div class="modal modal-sm">
+    <div class="modal-header" style="padding:18px 20px 14px">
+      <div class="modal-title">📅 Выбор периода</div>
+      <button class="modal-close" id="dateModalClose">✕</button>
+    </div>
+    <div style="padding:0 20px 12px">
+      <div class="date-presets" style="padding:0;margin-bottom:0">
+        <button class="preset-btn" data-preset="today">Сегодня</button>
+        <button class="preset-btn" data-preset="yesterday">Вчера</button>
+        <button class="preset-btn active" data-preset="7days">7 дней</button>
+        <button class="preset-btn" data-preset="30days">30 дней</button>
+        <button class="preset-btn" data-preset="month">Этот месяц</button>
+        <button class="preset-btn" data-preset="all">Всё время</button>
+      </div>
+    </div>
+    <div class="date-divider" style="margin:0 20px 12px">или укажите период вручную</div>
+    <div class="date-range-inputs" style="padding:0 20px;margin-bottom:16px">
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">С</label><input type="date" class="form-input" id="dateFrom"></div>
+      <div class="form-group" style="margin-bottom:0"><label class="form-label">По</label><input type="date" class="form-input" id="dateTo"></div>
+    </div>
+    <div style="padding:0 20px 20px;display:flex;gap:8px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" id="dateApplyBtn">Применить</button>
+      <button class="btn btn-ghost" id="dateModalClose2">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: СОТРУДНИКИ ══ -->
+<div class="modal-overlay" id="staffModal">
+  <div class="modal modal-sm">
+    <div class="modal-header" style="padding:18px 20px 14px">
+      <div class="modal-title">👤 Сотрудники</div>
+      <button class="modal-close" id="staffModalClose">✕</button>
+    </div>
+    <div style="padding:0 16px 10px">
+      <input type="text" class="form-input" id="staffSearch" placeholder="Поиск сотрудника...">
+    </div>
+    <div class="staff-list" id="staffList" style="margin:0 16px;max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:7px"></div>
+    <div style="display:flex;gap:8px;padding:12px 16px 16px;align-items:center">
+      <button class="btn btn-ghost sm" id="staffSelectAll">Выбрать всех</button>
+      <button class="btn btn-ghost sm" id="staffClearAll">Очистить</button>
+      <button class="btn btn-primary" style="margin-left:auto;justify-content:center" id="staffApplyBtn">Применить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ДОБАВЛЕНИЕ СКРИПТА ══ -->
+<div class="modal-overlay" id="scriptAddModal">
+  <div class="modal modal-sm">
+    <div class="modal-header" style="padding:18px 20px 14px">
+      <div class="modal-title">📋 Новый скрипт</div>
+      <button class="modal-close" id="scriptAddClose">✕</button>
+    </div>
+    <div style="padding:0 20px">
+      <div class="form-group">
+        <label class="form-label">Название скрипта</label>
+        <input class="form-input" id="scriptNameInput" placeholder="Например: Обработка входящего лида">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Содержимое скрипта</label>
+        <textarea class="form-input" id="scriptTextInput" rows="10"
+          placeholder="Вставьте текст скрипта. Разделы начинаются с ##, пункты — с • или -&#10;&#10;Пример:&#10;## Приветствие&#10;• Назвать имя и компанию&#10;• Уточнить удобство разговора&#10;&#10;## Выявление потребности&#10;• Спросить о задачах клиента&#10;• Уточнить бюджет"
+          style="resize:vertical;min-height:200px;font-size:12px"></textarea>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:4px 20px 20px">
+      <button class="btn btn-primary" style="flex:1;justify-content:center" id="scriptAddSaveBtn">💾 Сохранить скрипт</button>
+      <button class="btn btn-ghost" id="scriptAddCancelBtn">Отмена</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MODAL: ВОРОНКИ И ЭТАПЫ ══ -->
+<div class="modal-overlay" id="funnelModal">
+  <div class="modal modal-sm">
+    <div class="modal-header" style="padding:18px 20px 14px">
+      <div class="modal-title">🏷️ Фильтр: Воронки и этапы</div>
+      <button class="modal-close" id="funnelModalClose">✕</button>
+    </div>
+    <div style="padding:0 20px 12px">
+      <div style="font-size:12px;color:var(--muted2);margin-bottom:10px">Выбор сохраняется для вашего профиля</div>
+      <div id="funnelFilterList" style="max-height:380px;overflow-y:auto">
+        <div class="loading-row" style="padding:16px"><span class="spinner"></span> Загрузка воронок...</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;padding:4px 20px 20px">
+      <button class="btn btn-ghost sm" id="funnelClearBtn">Сбросить</button>
+      <button class="btn btn-primary" style="flex:1;justify-content:center" id="funnelApplyBtn">✓ Применить</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
