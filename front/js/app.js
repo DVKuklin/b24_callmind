@@ -2493,7 +2493,9 @@ var App = (function () {
           crmEntityTypes:JSON.stringify(cfg.crmEntityTypes)
         }
       },function(){});
-    }catch(e){}
+    }catch(e){
+      console.log(e);
+    }
     setTimeout(function(){
       if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
       checkServerStatus();
