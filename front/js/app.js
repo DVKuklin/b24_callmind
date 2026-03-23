@@ -2482,16 +2482,19 @@ var App = (function () {
     var btn=document.getElementById('saveSettingsBtn'); if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
     saveCfg();
     // Сохраняем minDuration в cfg тоже (для BX24.appOption)
-    try{
-      BX24.callMethod('user.option.set', {
-        options: {
+
+    let options = {
           serverMode:cfg.serverMode, cfUrl:cfg.cfUrl, vdsUrl:cfg.vdsUrl,
           dsModel:cfg.dsModel, whisperLang:cfg.whisperLang,
           tgSaveBx:cfg.tgSaveBx, tgAlertNeg:cfg.tgAlertNeg,
           minDuration:String(activeFilters.minDuration),
           allowedUsers:JSON.stringify(cfg.allowedUsers),
           crmEntityTypes:JSON.stringify(cfg.crmEntityTypes)
-        }
+    }
+    console.log(options);
+    try{
+      BX24.callMethod('user.option.set', {
+        options: options
       },function(res){
         console.log(res);
       });
