@@ -2465,6 +2465,9 @@ var App = (function () {
   }
 
   function saveSettings(){
+    // Отменяем все текущие загрузки по старым фильтрам
+    ++loadCallsFromBX24._gen;
+    ++loadFunnelsFromBX24._gen;
     cfg.serverMode = document.querySelector('.mode-btn.active') ? (document.querySelector('.mode-btn.active').dataset.mode||'worker') : 'worker';
     cfg.cfUrl      = normalizeUrl(val('cfWorkerUrl'));
     cfg.vdsUrl     = normalizeUrl(val('vdsUrl'));
@@ -2504,9 +2507,6 @@ var App = (function () {
     }catch(e){
       console.log(e);
     }
-    // Отменяем все текущие загрузки по старым фильтрам
-    ++loadCallsFromBX24._gen;
-    ++loadFunnelsFromBX24._gen;
     setTimeout(function(){
       if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
       checkServerStatus();
