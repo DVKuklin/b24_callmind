@@ -2483,6 +2483,7 @@ var App = (function () {
     saveCfg();
     // Сохраняем minDuration в cfg тоже (для BX24.appOption)
     try{
+console.log("----------");
       BX24.callMethod('user.option.set', {
         options: {
           serverMode:cfg.serverMode, cfUrl:cfg.cfUrl, vdsUrl:cfg.vdsUrl,
