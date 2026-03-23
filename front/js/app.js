@@ -2496,21 +2496,16 @@ var App = (function () {
       BX24.callMethod('user.option.set', {
         "options": options
       },function(res){
-        if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
-        checkServerStatus();
-        renderFunnelList();
-        updateFunnelFilterLabel();
-        loadCallsFromBX24();
       });
     }catch(e){
       console.log(e);
     }
     setTimeout(function(){
-      // if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
-      // checkServerStatus();
-      // renderFunnelList();
-      // updateFunnelFilterLabel();
-      // loadCallsFromBX24();
+      if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
+      checkServerStatus();
+      renderFunnelList();
+      updateFunnelFilterLabel();
+      loadCallsFromBX24();
     },200);
   }
 
