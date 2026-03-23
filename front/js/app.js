@@ -2492,7 +2492,9 @@ var App = (function () {
           allowedUsers:JSON.stringify(cfg.allowedUsers),
           crmEntityTypes:JSON.stringify(cfg.crmEntityTypes)
         }
-      },function(){});
+      },function(res){
+        console.log(res);
+      });
     }catch(e){
       console.log(e);
     }
