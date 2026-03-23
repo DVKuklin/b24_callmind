@@ -286,11 +286,13 @@ var App = (function () {
      ВОРОНКИ — загрузка всех воронок + этапов из CRM
   ══════════════════════════════════════════════ */
   function loadFunnelsFromBX24() {
+    var gen = ++loadFunnelsFromBX24._gen;
     // Шаг 1: загружаем категории сделок (воронки) и статусы лидов
     BX24.callBatch({
       dealCategories: { method:'crm.dealcategory.list', params:{ order:{SORT:'ASC'} } },
       leadStatuses:   { method:'crm.status.list',       params:{ filter:{ENTITY_ID:'STATUS'}, order:{SORT:'ASC'} } }
     }, function(res) {
+      if(loadFunnelsFromBX24._gen !== gen) return;
       allFunnels = [];
 
       var cats = (res.dealCategories && !res.dealCategories.error()) ? (res.dealCategories.data()||[]) : [];
@@ -315,6 +317,7 @@ var App = (function () {
       });
 
       BX24.callBatch(batchReqs, function(stageRes) {
+        if(loadFunnelsFromBX24._gen !== gen) return;
         // Общая воронка
         var genStages = (stageRes['stages_0'] && !stageRes['stages_0'].error()) ? (stageRes['stages_0'].data()||[]) : [];
         if(genStages.length) {
@@ -343,6 +346,7 @@ var App = (function () {
       });
     });
   }
+  loadFunnelsFromBX24._gen = 0;
 
   // Получить воронку+этап для CRM-объекта (из кэша или BX24)
   function lookupCrmStage(crm, cb) {
@@ -2500,6 +2504,9 @@ var App = (function () {
     }catch(e){
       console.log(e);
     }
+    // Отменяем все текущие загрузки по старым фильтрам
+    ++loadCallsFromBX24._gen;
+    ++loadFunnelsFromBX24._gen;
     setTimeout(function(){
       if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
       checkServerStatus();
