@@ -2492,15 +2492,15 @@ var App = (function () {
           crmEntityTypes:JSON.stringify(cfg.crmEntityTypes)
     }
 
-    try{
+    // try{
       BX24.callMethod('user.option.set', {
         "options": options
       },function(res){
 
       });
-    }catch(e){
-      console.log(e);
-    }
+    // }catch(e){
+    //   console.log(e);
+    // }
     setTimeout(function(){
       if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
       checkServerStatus();
