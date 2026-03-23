@@ -68,10 +68,65 @@ export default {
     if (path === '/script-check'   && request.method === 'POST') return handleScriptCheck(request, env);
     if (path === '/analyze'        && request.method === 'POST') return handleAnalyzeFull(request, env);
     if (path === '/bx24-calls'     && request.method === 'POST') return handleBX24Calls(request, env);
+    if (path === '/bx24-users'     && request.method === 'POST') return handleBX24Users(request, env);
 
-    return ok({ status: 'CallMind Worker v9', endpoints: ['/health', '/download-audio', '/transcribe', '/analyze-text', '/script-check', '/analyze', '/bx24-calls'] });
+    return ok({ status: 'CallMind Worker v9', endpoints: ['/health', '/download-audio', '/transcribe', '/analyze-text', '/script-check', '/analyze', '/bx24-calls', '/bx24-users'] });
   }
 };
+
+// ══════════════════════════════════════════════════════════════
+// POST /bx24-users
+// { domain, token, start? } → { departments:[{id,name}], users:[{ID,NAME,LAST_NAME,UF_DEPARTMENT}], next:N|null }
+// ══════════════════════════════════════════════════════════════
+async function handleBX24Users(request) {
+  let body;
+  try { body = await request.json(); }
+  catch(e) { return jsonErr('Ожидался JSON с domain и token', 400); }
+
+  const { domain, token, start } = body;
+  if (!domain) return jsonErr('Поле domain обязательно', 400);
+  if (!token)  return jsonErr('Поле token обязательно', 400);
+
+  const base = 'https://' + domain.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+  try {
+    const [deptRes, userRes] = await Promise.all([
+      start ? null : fetch(base + '/rest/department.get', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ auth: token }),
+      }),
+      fetch(base + '/rest/user.get', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          auth:   token,
+          FILTER: { ACTIVE: true },
+          SELECT: ['ID', 'NAME', 'LAST_NAME', 'UF_DEPARTMENT'],
+          ORDER:  { LAST_NAME: 'ASC' },
+          start:  start || 0,
+        }),
+      }),
+    ]);
+
+    const userData = await userRes.json();
+    if (userData.error) return jsonErr('BX24 user.get: ' + (userData.error_description || userData.error), 502);
+
+    let departments = [];
+    if (deptRes) {
+      const deptData = await deptRes.json();
+      if (!deptData.error) departments = deptData.result || [];
+    }
+
+    return ok({
+      departments,
+      users: userData.result || [],
+      next:  userData.next != null ? userData.next : null,
+    });
+  } catch(e) {
+    return jsonErr('BX24 users error: ' + e.message, 502);
+  }
+}
 
 // ══════════════════════════════════════════════════════════════
 // POST /bx24-calls

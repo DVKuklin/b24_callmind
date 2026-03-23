@@ -186,19 +186,19 @@ var App = (function () {
      LOAD USERS & DEPTS
   ══════════════════════════════════════════════ */
   function loadDeptsAndUsers(cb) {
-    BX24.callMethod('department.get', {}, function(dRes) {
-      if(!dRes.error()) {
-        allDepts = (dRes.data()||[]).map(function(d){ return {id:String(d.ID), name:d.NAME||('#'+d.ID)}; });
-      }
-      _loadUsersPage(0, [], cb);
-    });
+    var wUrl = getActiveServerUrl();
+    if(!wUrl) { if(cb) cb(); return; }
+    _loadUsersPage(0, [], wUrl, cb);
   }
-  function _loadUsersPage(start, collected, cb) {
-    BX24.callMethod('user.get', {FILTER:{ACTIVE:true}, SELECT:['ID','NAME','LAST_NAME','UF_DEPARTMENT'], ORDER:{LAST_NAME:'ASC'}, start:start}, function(res) {
-      if(res.error()) { if(cb) cb(); return; }
-      var users = res.data()||[];
-      collected = collected.concat(users);
-      if(res.more()) { _loadUsersPage(start+users.length, collected, cb); return; }
+  function _loadUsersPage(start, collected, wUrl, cb) {
+    var auth = BX24.getAuth();
+    xhrPost(wUrl+'/bx24-users', {domain: auth.domain, token: auth.access_token, start: start}, 30000, function(err, res) {
+      if(err) { if(cb) cb(); return; }
+      if(start === 0 && res.departments && res.departments.length) {
+        allDepts = res.departments.map(function(d){ return {id:String(d.ID), name:d.NAME||('#'+d.ID)}; });
+      }
+      collected = collected.concat(res.users || []);
+      if(res.next != null) { _loadUsersPage(res.next, collected, wUrl, cb); return; }
       allManagers = collected.map(function(u) {
         var name = ((u.LAST_NAME||'')+' '+(u.NAME||'')).trim() || ('Пользователь #'+u.ID);
         var deptId = (u.UF_DEPARTMENT&&u.UF_DEPARTMENT.length) ? String(u.UF_DEPARTMENT[0]) : '';
