@@ -2465,55 +2465,58 @@ var App = (function () {
   }
 
   function saveSettings(){
+    var btn=document.getElementById('saveSettingsBtn'); if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
     // Отменяем все текущие загрузки по старым фильтрам
     ++loadCallsFromBX24._gen;
     ++loadFunnelsFromBX24._gen;
-    cfg.serverMode = document.querySelector('.mode-btn.active') ? (document.querySelector('.mode-btn.active').dataset.mode||'worker') : 'worker';
-    cfg.cfUrl      = normalizeUrl(val('cfWorkerUrl'));
-    cfg.vdsUrl     = normalizeUrl(val('vdsUrl'));
-    cfg.vdsApiKey  = val('vdsApiKey');
-    cfg.dsModel    = val('dsModel')||'deepseek-chat';
-    cfg.whisperLang= val('whisperLang')||'ru';
-    cfg.tgSaveBx   = (document.getElementById('tgSaveBx')&&document.getElementById('tgSaveBx').classList.contains('on'))?'1':'0';
-    cfg.tgAlertNeg = (document.getElementById('tgAlertNeg')&&document.getElementById('tgAlertNeg').classList.contains('on'))?'1':'0';
-    // Фильтры звонков по умолчанию
-    var durEl=document.getElementById('settingsMinDuration');
-    var durVal=durEl?parseInt(durEl.value):10;
-    activeFilters.minDuration=isNaN(durVal)?0:durVal;
-    // Воронки — применяем черновик
-    activeFilters.funnelStages=draftFunnelStages.slice();
-    saveFunnelFilter(activeFilters.funnelStages);
-    // Обновляем поля если нормализация изменила URL
-    var wEl=document.getElementById('cfWorkerUrl'); if(wEl&&cfg.cfUrl) wEl.value=cfg.cfUrl;
-    var vEl=document.getElementById('vdsUrl');      if(vEl&&cfg.vdsUrl) vEl.value=cfg.vdsUrl;
-    var btn=document.getElementById('saveSettingsBtn'); if(btn){btn.disabled=true;btn.textContent='Сохранение...';}
-    saveCfg();
-    // Сохраняем minDuration в cfg тоже (для BX24.appOption)
 
-    let options = {
-          serverMode:cfg.serverMode, cfUrl:cfg.cfUrl, vdsUrl:cfg.vdsUrl,
-          dsModel:cfg.dsModel, whisperLang:cfg.whisperLang,
-          tgSaveBx:cfg.tgSaveBx, tgAlertNeg:cfg.tgAlertNeg,
-          minDuration:String(activeFilters.minDuration),
-          allowedUsers: JSON.stringify(cfg.allowedUsers),
-          crmEntityTypes:JSON.stringify(cfg.crmEntityTypes)
-    }
-
-    try{
-      BX24.callMethod('user.option.set', {
-        "options": options
-      },function(res){
-      });
-    }catch(e){
-      console.log(e);
-    }
     setTimeout(function(){
-      if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
-      checkServerStatus();
-      renderFunnelList();
-      updateFunnelFilterLabel();
-      loadCallsFromBX24();
-    },200);
+      cfg.serverMode = document.querySelector('.mode-btn.active') ? (document.querySelector('.mode-btn.active').dataset.mode||'worker') : 'worker';
+      cfg.cfUrl      = normalizeUrl(val('cfWorkerUrl'));
+      cfg.vdsUrl     = normalizeUrl(val('vdsUrl'));
+      cfg.vdsApiKey  = val('vdsApiKey');
+      cfg.dsModel    = val('dsModel')||'deepseek-chat';
+      cfg.whisperLang= val('whisperLang')||'ru';
+      cfg.tgSaveBx   = (document.getElementById('tgSaveBx')&&document.getElementById('tgSaveBx').classList.contains('on'))?'1':'0';
+      cfg.tgAlertNeg = (document.getElementById('tgAlertNeg')&&document.getElementById('tgAlertNeg').classList.contains('on'))?'1':'0';
+      // Фильтры звонков по умолчанию
+      var durEl=document.getElementById('settingsMinDuration');
+      var durVal=durEl?parseInt(durEl.value):10;
+      activeFilters.minDuration=isNaN(durVal)?0:durVal;
+      // Воронки — применяем черновик
+      activeFilters.funnelStages=draftFunnelStages.slice();
+      saveFunnelFilter(activeFilters.funnelStages);
+      // Обновляем поля если нормализация изменила URL
+      var wEl=document.getElementById('cfWorkerUrl'); if(wEl&&cfg.cfUrl) wEl.value=cfg.cfUrl;
+      var vEl=document.getElementById('vdsUrl');      if(vEl&&cfg.vdsUrl) vEl.value=cfg.vdsUrl;
+      saveCfg();
+      // Сохраняем minDuration в cfg тоже (для BX24.appOption)
+
+      let options = {
+            serverMode:cfg.serverMode, cfUrl:cfg.cfUrl, vdsUrl:cfg.vdsUrl,
+            dsModel:cfg.dsModel, whisperLang:cfg.whisperLang,
+            tgSaveBx:cfg.tgSaveBx, tgAlertNeg:cfg.tgAlertNeg,
+            minDuration:String(activeFilters.minDuration),
+            allowedUsers: JSON.stringify(cfg.allowedUsers),
+            crmEntityTypes:JSON.stringify(cfg.crmEntityTypes)
+      }
+
+      try{
+        BX24.callMethod('user.option.set', {
+          "options": options
+        },function(res){
+        });
+      }catch(e){
+        console.log(e);
+      }
+      setTimeout(function(){
+        if(btn){btn.disabled=false;btn.textContent='✅ Сохранено!';setTimeout(function(){btn.textContent='💾 Сохранить';},2000);}
+        checkServerStatus();
+        renderFunnelList();
+        updateFunnelFilterLabel();
+        loadCallsFromBX24();
+      },200);
+    },3000);
   }
 
   function checkServerStatus(){
