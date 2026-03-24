@@ -1350,7 +1350,7 @@ var App = (function () {
 
   function _sendBase64(c, wUrl, b64, callId) {
     setAuditLoading(callId,'🎙️ Whisper...');
-    xhrPost(wUrl+'/transcribe',{audio_base64:b64,language:cfg.whisperLang||'ru'},60000,function(err,result){
+    xhrPost(wUrl+'/transcribe',{audio_base64:b64,language:cfg.whisperLang||'ru'},300000,function(err,result){
       if(err){setAuditNormal(callId);alert('Whisper: '+err);return;}
       var tr=(result.text||'').trim(); if(!tr){setAuditNormal(callId);alert('Пустой транскрипт');return;}
       setAuditLoading(callId,'🧠 DeepSeek...');
