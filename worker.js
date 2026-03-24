@@ -289,8 +289,12 @@ async function handleAnalyzeText(request, env) {
   catch(e) { return jsonErr('Ожидался JSON с transcript', 400); }
 
   if (!body.transcript) return jsonErr('Поле transcript обязательно', 400);
+  let segments = null;
+  if (body.segments) {
+    segments = body.segments;
+  }
 
-  return runDeepSeek(body.transcript, null, body.model, body.manager, body.contact, deepseekKey);
+  return runDeepSeek(body.transcript, segments, body.model, body.manager, body.contact, deepseekKey);
 }
 
 // ══════════════════════════════════════════════════════════════

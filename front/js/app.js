@@ -1338,8 +1338,9 @@ var App = (function () {
     xhrPost(wUrl+'/transcribe',{audio_url:audioUrl,language:cfg.whisperLang||'ru'},90000,function(err,result){
       if(err){if(onDone)onDone(true);return;}
       var tr=(result.text||'').trim(); if(!tr){if(onDone)onDone(true);return;}
+      var segments=result.diarized.segments; if(!segments){if(onDone)onDone(true);return;}
       setAuditLoading(callId,'🧠 DeepSeek...');
-      xhrPost(wUrl+'/analyze-text',buildAnalyzePayload(c,tr),300000,function(err2,result2){
+      xhrPost(wUrl+'/analyze-text',buildAnalyzePayload(c,tr,segments),300000,function(err2,result2){
         setAuditNormal(callId);
         if(err2){alert('DeepSeek: '+err2);if(onDone)onDone(false);return;}
         finishAnalysis(c,result2,tr);
@@ -1353,8 +1354,9 @@ var App = (function () {
     xhrPost(wUrl+'/transcribe',{audio_base64:b64,language:cfg.whisperLang||'ru'},300000,function(err,result){
       if(err){setAuditNormal(callId);alert('Whisper: '+err);return;}
       var tr=(result.text||'').trim(); if(!tr){setAuditNormal(callId);alert('Пустой транскрипт');return;}
+      var segments=result.diarized.segments;
       setAuditLoading(callId,'🧠 DeepSeek...');
-      xhrPost(getActiveServerUrl()+'/analyze-text',buildAnalyzePayload(c,tr),300000,function(err2,result2){
+      xhrPost(getActiveServerUrl()+'/analyze-text',buildAnalyzePayload(c,tr,segments),300000,function(err2,result2){
         setAuditNormal(callId);
         if(err2){alert('DeepSeek: '+err2);return;}
         finishAnalysis(c,result2,tr);
@@ -1363,9 +1365,10 @@ var App = (function () {
   }
 
   /* ПРОМПТ — только русский, резюме обязательно */
-  function buildAnalyzePayload(c, transcript) {
+  function buildAnalyzePayload(c, transcript, segments) {
     return {
       transcript: transcript,
+      segments: segments ? segments : null,
       model: cfg.dsModel||'deepseek-chat',
       manager: c.manager||'',
       contact: c.contact||'',
