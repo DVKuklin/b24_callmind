@@ -452,9 +452,83 @@ async function handleScriptCheck(request, env) {
 // ══════════════════════════════════════════════════════════════
 // DeepSeek анализ транскрипта
 // ══════════════════════════════════════════════════════════════
-async function runDeepSeek(transcript, model, manager, contact, deepseekKey) {
+async function runDeepSeek(transcript, segments, model, manager, contact, deepseekKey) {
   model = model || 'deepseek-chat';
 
+  // ── Diarized mode: segments from gpt-4o-transcribe-diarize ──
+  if (segments && segments.length) {
+    const uniqueSpeakers = [...new Set(segments.map(s => s.speaker))];
+    const speakersTemplate = JSON.stringify(
+      uniqueSpeakers.reduce((o, id) => { o[id] = { role: 'agent"|"client', name: '...' }; return o; }, {})
+    );
+
+    const segText = segments.map(seg => {
+      const s = Math.round(seg.start);
+      const time = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      return `[${seg.speaker} ${time}] ${seg.text.trim()}`;
+    }).join('\n');
+
+    const prompt =
+      'Аналитик звонков. Верни ТОЛЬКО валидный JSON без markdown.\n' +
+      'Структура:\n' +
+      '{"sentiment":"positive"|"neutral"|"negative","pos":0-100,"neu":0-100,"neg":0-100,' +
+      '"topics":["тема"],"keyPoints":[{"icon":"emoji","label":"...","text":"..."}],' +
+      '"speakers":' + speakersTemplate + '}\n\n' +
+      '"transcript" НЕ нужен — он будет составлен автоматически из сегментов.\n' +
+      'Определи роль каждого спикера (' + uniqueSpeakers.join(', ') + '): кто менеджер (agent), кто клиент (client).\n' +
+      'Имена определи из контекста разговора (если называются), иначе используй "Менеджер" / "Клиент".\n\n' +
+      'ВАЖНО: JSON не должен превышать 7900 символов. Сокращай keyPoints.text если не помещается.\n\n' +
+      (manager ? 'Менеджер компании: ' + manager + '\n' : '') +
+      (contact  ? 'Контакт/клиент: '  + contact  + '\n' : '') +
+      '\nСегменты разговора:\n' + segText;
+
+    try {
+      const dr = await fetch('https://api.deepseek.com/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + deepseekKey },
+        body: JSON.stringify({ model, messages: [{ role: 'user', content: prompt }], max_tokens: 8192, temperature: 0.1 }),
+      });
+
+      const dj = await dr.json();
+      if (!dr.ok) return jsonErr('DeepSeek: ' + (dj.error?.message || 'HTTP ' + dr.status), 502);
+
+      let raw = (dj.choices?.[0]?.message?.content || '').replace(/```json|```/g, '').trim();
+
+      let analysis;
+      try {
+        analysis = JSON.parse(raw);
+      } catch(e) {
+        const m = raw.match(/\{[\s\S]+\}/);
+        if (m) {
+          try { analysis = JSON.parse(m[0]); }
+          catch(e2) { return jsonErr('DeepSeek вернул невалидный JSON: ' + raw.slice(0, 200), 422); }
+        } else {
+          return jsonErr('DeepSeek вернул невалидный JSON: ' + raw.slice(0, 200), 422);
+        }
+      }
+
+      // Строим transcript из segments + speaker map от DeepSeek
+      const spkMap = analysis.speakers || {};
+      analysis.transcript = segments.map(seg => {
+        const spk = spkMap[seg.speaker] || {};
+        const s = Math.round(seg.start);
+        const time = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+        return {
+          role: spk.role || 'agent',
+          name: spk.name || seg.speaker,
+          time,
+          text: seg.text.trim(),
+        };
+      });
+      delete analysis.speakers;
+
+      return ok(analysis);
+    } catch(e) {
+      return jsonErr('DeepSeek error: ' + e.message, 502);
+    }
+  }
+
+  // ── Text mode (no diarization) ──
   const prompt =
     'Аналитик звонков. Верни ТОЛЬКО валидный JSON без markdown.\n' +
     'Структура:\n' +
@@ -465,7 +539,7 @@ async function runDeepSeek(transcript, model, manager, contact, deepseekKey) {
     'Если не помещается — обрезай текст в полях "text" у keyPoints и transcript, добавляя "..." в конце.\n' +
     'Сначала сокращай transcript, потом keyPoints.\n\n' +
     (manager ? 'Менеджер: ' + manager + '\n' : '') +
-    (contact ? 'Контакт: ' + contact + '\n' : '') +
+    (contact  ? 'Контакт: '  + contact  + '\n' : '') +
     '\nТранскрипт:\n' + transcript;
 
   try {
