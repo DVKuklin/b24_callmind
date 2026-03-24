@@ -37,7 +37,9 @@ function buildWhisperForm(audioBuffer, mime, ext, language) {
   const parts = [
     enc(`--${boundary}${nl}Content-Disposition: form-data; name="file"; filename="audio.${ext}"${nl}Content-Type: ${mime}${nl}${nl}`),
     Buffer.from(audioBuffer),
-    enc(`${nl}--${boundary}${nl}Content-Disposition: form-data; name="model"${nl}${nl}whisper-1`),
+    enc(`${nl}--${boundary}${nl}Content-Disposition: form-data; name="model"${nl}${nl}gpt-4o-transcribe-diarize`),
+    enc(`${nl}--${boundary}${nl}Content-Disposition: form-data; name="response_format"${nl}${nl}diarized_json`),
+    enc(`${nl}--${boundary}${nl}Content-Disposition: form-data; name="chunking_strategy"${nl}${nl}auto`),
     enc(`${nl}--${boundary}${nl}Content-Disposition: form-data; name="language"${nl}${nl}${language}`),
     enc(`${nl}--${boundary}--${nl}`),
   ];
@@ -268,7 +270,7 @@ async function handleTranscribe(request, env) {
     const wj = await wr.json();
     if (!wr.ok) return jsonErr('Whisper: ' + (wj.error?.message || 'HTTP ' + wr.status), 502);
 
-    return ok({ text: (wj.text || '').trim() });
+    return ok({ text: (wj.text || '').trim(), diarized: wj });
   } catch(e) {
     return jsonErr('Whisper error: ' + e.message, 502);
   }
@@ -288,7 +290,7 @@ async function handleAnalyzeText(request, env) {
 
   if (!body.transcript) return jsonErr('Поле transcript обязательно', 400);
 
-  return runDeepSeek(body.transcript, body.model, body.manager, body.contact, deepseekKey);
+  return runDeepSeek(body.transcript, null, body.model, body.manager, body.contact, deepseekKey);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -327,7 +329,7 @@ async function handleAnalyzeFull(request, env) {
   const info = detectFormat(audioBuffer, mime);
 
   // Whisper
-  let transcript;
+  let transcript, whisperSegments;
   try {
     const { body: wBody, contentType: wCT } = buildWhisperForm(audioBuffer, info.mime, info.ext, language);
     const wr = await apiFetch('https://api.openai.com/v1/audio/transcriptions', {
@@ -338,13 +340,14 @@ async function handleAnalyzeFull(request, env) {
     const wj = await wr.json();
     if (!wr.ok) return jsonErr('Whisper: ' + (wj.error?.message || 'HTTP ' + wr.status), 502);
     transcript = (wj.text || '').trim();
+    whisperSegments = (wj.segments && wj.segments.length) ? wj.segments : null;
   } catch(e) {
     return jsonErr('Whisper error: ' + e.message, 502);
   }
 
   if (!transcript) return jsonErr('Whisper вернул пустой транскрипт', 422);
 
-  return runDeepSeek(transcript, body.model, body.manager, body.contact, deepseekKey);
+  return runDeepSeek(transcript, whisperSegments, body.model, body.manager, body.contact, deepseekKey);
 }
 
 // ══════════════════════════════════════════════════════════════
