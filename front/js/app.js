@@ -364,18 +364,6 @@ var App = (function () {
         var result = stage ? {funnelName:'Лиды', stageName:stage.name} : null;
         crmStageCache[key]=result; cb(result);
       });
-    } else if(crm.type==='CONTACT') {
-      // Контакт — ищем последнюю сделку по контакту
-      BX24.callMethod('crm.deal.list', {filter:{CONTACT_ID:crm.id}, order:{DATE_CREATE:'DESC'}, select:['ID','STAGE_ID','CATEGORY_ID'], start:0}, function(r) {
-        if(r.error()||!(r.data()||[]).length) { crmStageCache[key]=null; cb(null); return; }
-        var d=r.data()[0];
-        _resolveStageFromDeal(d, key, cb);
-      });
-    } else if(crm.type==='COMPANY') {
-      BX24.callMethod('crm.deal.list', {filter:{COMPANY_ID:crm.id}, order:{DATE_CREATE:'DESC'}, select:['ID','STAGE_ID','CATEGORY_ID'], start:0}, function(r) {
-        if(r.error()||!(r.data()||[]).length) { crmStageCache[key]=null; cb(null); return; }
-        _resolveStageFromDeal(r.data()[0], key, cb);
-      });
     } else if(crm.type==='DEAL') {
       BX24.callMethod('crm.deal.get', {id:crm.id, select:['STAGE_ID','CATEGORY_ID']}, function(r) {
         if(r.error()) { crmStageCache[key]=null; cb(null); return; }
@@ -593,7 +581,10 @@ var App = (function () {
           showLoading('Загружено '+allLoadedCalls.length+'...');
           goPage(currentPage);
           fetchPage(res.next, pageCount+1);
-        } else { showLoading(''); goPage(currentPage); }
+        } else { 
+          showLoading('');
+          goPage(currentPage); 
+        }
       });
     }
     fetchPage(0,0);
@@ -638,6 +629,7 @@ var App = (function () {
       _crmResolved: null,
       analysis:     null,
       crm_entity_type: item.CRM_ENTITY_TYPE,
+      crm_entity_id: item.CRM_ENTITY_ID,
     };
   }
 
@@ -1095,7 +1087,7 @@ var App = (function () {
       // CRM загружен, этап ещё нет
       funnelCellInner='<span class="funnel-stage-lazy" data-call-id="'+c.id+'" style="color:var(--muted);font-size:11px">⏳</span>';
     } else if(stageInfo) {
-      funnelCellInner=funnelStageHtml(stageInfo);
+      funnelCellInner=funnelStageHtml(stageInfo, {id:c.crm_entity_id, type:c.crm_entity_type});
     } else {
       funnelCellInner='<span style="color:var(--muted2);font-size:11px">—</span>';
     }
@@ -1116,11 +1108,20 @@ var App = (function () {
       cbCell+dateCell+contactCell+funnelCell+mgrCell+typeCell+durCell+recCell+scoreCell+auditCell+'</tr>';
   }
 
-  function funnelStageHtml(stageInfo) {
+  function funnelStageHtml(stageInfo, crm) {
     if(!stageInfo) return '<span style="color:var(--muted2);font-size:11px">—</span>';
     var titleText = esc(stageInfo.funnelName) + ' / ' + esc(stageInfo.stageName);
-    return '<div title="'+titleText+'" style="font-size:11px;font-weight:600;color:var(--text2)">'+esc(stageInfo.funnelName)+'</div>'+
+    var inner = '<div title="'+titleText+'" style="font-size:11px;font-weight:600;color:var(--text2)">'+esc(stageInfo.funnelName)+'</div>'+
       '<div title="'+titleText+'" class="funnel-stage-badge">'+esc(stageInfo.stageName)+'</div>';
+    if(crm && crm.id && crm.type) {
+      var paths = { CONTACT:'crm/contact/details/', LEAD:'crm/lead/details/', COMPANY:'crm/company/details/', DEAL:'crm/deal/details/' };
+      var path = paths[crm.type];
+      if(path) {
+        var domain = BX24.getDomain ? BX24.getDomain() : window.location.hostname;
+        return '<a href="https://'+domain+'/'+path+crm.id+'/" target="_blank" style="text-decoration:none">'+inner+'</a>';
+      }
+    }
+    return inner;
   }
 
   function calcScore(a) {
@@ -1210,15 +1211,14 @@ var App = (function () {
       var phone=el.dataset.phone;
       var callId=el.dataset.callId;
       var c=allLoadedCalls.find(function(x){return x.id===callId;});
+
+      lookupCrmStage({id:c.crm_entity_id,type:c.crm_entity_type}, function(stageInfo){
+        refreshFunnelCell(callId, stageInfo);
+      });
+
       lookupCrm(phone, function(crm){
         if(c) c._crmResolved=crm;
         refreshCrmChip(callId, crm);
-        // После получения CRM — подгружаем этап воронки
-        if(crm) {
-          lookupCrmStage(crm, function(stageInfo){
-            refreshFunnelCell(callId, stageInfo);
-          });
-        }
       });
     });
 
@@ -1231,7 +1231,7 @@ var App = (function () {
       if(crmStageCache[key]!==undefined) {
         refreshFunnelCell(callId, crmStageCache[key]); return;
       }
-      lookupCrmStage(c._crmResolved, function(stageInfo){
+      lookupCrmStage({id:c.crm_entity_id,type:c.crm_entity_type}, function(stageInfo){
         refreshFunnelCell(callId, stageInfo);
       });
     });
@@ -1263,8 +1263,10 @@ var App = (function () {
   }
 
   function refreshFunnelCell(callId, stageInfo) {
+    var c = allLoadedCalls.find(function(x){ return x.id===callId; });
+    var crm = c ? {id:c.crm_entity_id, type:c.crm_entity_type} : null;
     document.querySelectorAll('.funnel-cell[data-id="'+callId+'"]').forEach(function(td){
-      td.innerHTML = funnelStageHtml(stageInfo);
+      td.innerHTML = funnelStageHtml(stageInfo, crm);
     });
   }
 
