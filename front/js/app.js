@@ -615,6 +615,7 @@ var App = (function () {
   function mapCall(item, nameMap) {
     var uid=item.PORTAL_USER_ID?String(item.PORTAL_USER_ID):'';
     var durRaw=parseInt(item.CALL_DURATION)||0;
+
     return {
       id:           item.CALL_ID||item.ID,
       ts:           item.CALL_START_DATE?new Date(item.CALL_START_DATE):new Date(0),
@@ -630,6 +631,7 @@ var App = (function () {
       analysis:     null,
       crm_entity_type: item.CRM_ENTITY_TYPE,
       crm_entity_id: item.CRM_ENTITY_ID,
+      missed: String(item.CALL_TYPE)==='2' && parseInt(item.CALL_FAILED_CODE||0)==304,
     };
   }
 
@@ -1015,10 +1017,11 @@ var App = (function () {
     var allWithRec=allLoadedCalls.filter(function(c){return !!c._recordUrl;}).length;
     var analyzed=allLoadedCalls.filter(function(c){return !!c.analysis;});
     var neg=analyzed.filter(function(c){return c.analysis.sentiment==='negative';}).length;
+    var missed=allLoadedCalls.filter(function(c){return !!c.missed;}).length;
     setText('statTotal',allLoadedCalls.length);
     setText('statRecord',allWithRec);
     setText('statDone',analyzed.length);
-    setText('statNeg',neg);
+    setText('statNeg',neg+missed);
     setText('statPeriodLabel',activeFilters.dateLabel||'');
     var cnt=document.getElementById('filtersCount');
     if(cnt) cnt.innerHTML='Показано: <strong>'+filtered.length+'</strong> из '+calls.length;
@@ -1096,7 +1099,7 @@ var App = (function () {
     // BX24 CALL_TYPE: 1=Исходящий, 2=Входящий, 3=Входящий (на линию), 4=Обратный звонок
     var typeLabel=c.callType==='1'?'Исходящий':c.callType==='2'?'Входящий':c.callType==='3'?'Входящий':c.callType==='4'?'Обратный':'—';
     var typeCls=c.callType==='1'?'call-type-out':c.callType==='2'||c.callType==='3'?'call-type-in':c.callType==='4'?'call-type-in':'call-type-other';
-    var typeCell='<td><span class="call-type-badge '+typeCls+'">'+typeLabel+'</span></td>';
+    var typeCell='<td><span class="call-type-badge '+typeCls+'">'+typeLabel+'</span>'+(c.missed?'<span title="Пропущенный" style="margin-left:4px">📵</span>':'')+'</td>';
     var durCell='<td style="font-family:var(--mono);font-size:12px;color:var(--text2)">'+c.duration+'</td>';
     var recCell='<td style="text-align:center">'+(c._recordUrl?'<button class="btn-play play-btn" data-id="'+c.id+'">▶</button>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>';
 
