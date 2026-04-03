@@ -1099,7 +1099,7 @@ var App = (function () {
     // BX24 CALL_TYPE: 1=Исходящий, 2=Входящий, 3=Входящий (на линию), 4=Обратный звонок
     var typeLabel=c.callType==='1'?'Исходящий':c.callType==='2'?'Входящий':c.callType==='3'?'Входящий':c.callType==='4'?'Обратный':'—';
     var typeCls=c.callType==='1'?'call-type-out':c.callType==='2'||c.callType==='3'?'call-type-in':c.callType==='4'?'call-type-in':'call-type-other';
-    var typeCell='<td><span class="call-type-badge '+typeCls+'">'+typeLabel+'</span>'+(c.missed?'<span title="Пропущенный" style="margin-left:4px">📵</span>':'')+'</td>';
+    var typeCell='<td><span class="call-type-badge '+typeCls+'">'+typeLabel+'</span></td>';
     var durCell='<td style="font-family:var(--mono);font-size:12px;color:var(--text2)">'+c.duration+'</td>';
     var recCell='<td style="text-align:center">'+(c._recordUrl?'<button class="btn-play play-btn" data-id="'+c.id+'">▶</button>':'<span style="color:var(--muted);font-size:12px">—</span>')+'</td>';
 
